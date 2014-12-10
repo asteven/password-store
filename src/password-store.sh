@@ -9,7 +9,7 @@ set -o pipefail
 GPG_OPTS=( "--quiet" "--yes" "--compress-algo=none" )
 GPG="gpg"
 which gpg2 &>/dev/null && GPG="gpg2"
-[[ -n $GPG_AGENT_INFO || $GPG == "gpg2" ]] && GPG_OPTS+=( "--batch" "--use-agent" )
+[[ -n "$GPG_AGENT_INFO" || -S ~/.gnupg/S.gpg-agent || $GPG == "gpg2" ]] && GPG_OPTS+=( "--batch" "--use-agent" )
 
 PREFIX="${PASSWORD_STORE_DIR:-$HOME/.password-store}"
 X_SELECTION="${PASSWORD_STORE_X_SELECTION:-clipboard}"
@@ -80,7 +80,7 @@ set_gpg_recipients() {
 	done < "$current"
 }
 agent_check() {
-	[[ ! -t 0 || -n $GPG_AGENT_INFO ]] || yesno "$(cat <<-_EOF
+	[[ ! -t 0 || -n "$GPG_AGENT_INFO" || -S ~/.gnupg/S.gpg-agent ]] || yesno "$(cat <<-_EOF
 	You are not running gpg-agent. This means that you will
 	need to enter your password for each and every gpg file
 	that pass processes. This could be quite tedious.
