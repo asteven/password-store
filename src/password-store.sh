@@ -103,7 +103,19 @@ set_gpg_recipients() {
 		GPG_RECIPIENTS+=( "$gpg_id" )
 	done < "$current"
 }
-
+add_gpg_id() {
+	local gpg_id_file="$1" gpg_id="$2"
+	if ! grep -q "$gpg_id" "$gpg_id_file"; then
+		printf '%s\n' "$gpg_id" >> "$gpg_id_file"
+	fi
+}
+remove_gpg_id() {
+	local gpg_id_file="$1" gpg_id="$2"
+	if grep -q "$gpg_id" "$gpg_id_file"; then
+		# suffix for -i for portability
+		sed -i'' "/$gpg_id/d" "$gpg_id_file"
+	fi
+}
 reencrypt_path() {
 	local prev_gpg_recipients="" gpg_keys="" current_keys="" index passfile
 	local groups="$($GPG $PASSWORD_STORE_GPG_OPTS --list-config --with-colons | grep "^cfg:group:.*")"
@@ -259,6 +271,9 @@ cmd_usage() {
 	    $PROGRAM init [--path=subfolder,-p subfolder] gpg-id...
 	        Initialize new password storage and use gpg-id for encryption.
 	        Selectively reencrypt existing passwords using new gpg-id.
+	    $PROGRAM id [--path=subfolder,-p subfolder] add | remove gpg-id...
+	        Add or remove gpg-id's from the .gpg-id file and reencrypt files to use
+	        the new id.
 	    $PROGRAM [ls] [subfolder]
 	        List passwords.
 	    $PROGRAM find pass-names...
@@ -342,6 +357,45 @@ cmd_init() {
 
 	reencrypt_path "$PREFIX/$id_path"
 	git_add_file "$PREFIX/$id_path" "Reencrypt password store using new GPG id ${id_print%, }${id_path:+ ($id_path)}."
+}
+
+cmd_id() {
+	local opts id_path="" action
+	opts="$($GETOPT -o p: -l path: -n "$PROGRAM" -- "$@")"
+	local err=$?
+	eval set -- "$opts"
+	while true; do case $1 in
+		-p|--path) id_path="$2"; shift 2 ;;
+		--) shift; break ;;
+	esac done
+
+	action="$1"; shift
+	case "$action" in
+		a|add)
+			action="add"
+		;;
+		r|rm|remove)
+			action="remove"
+		;;
+		*)
+			die "Error: Expected a first argument of 'add' or 'remove' but got: $1"
+		;;
+	esac
+
+	[[ $err -ne 0 || $# -lt 1 ]] && die "Usage: $PROGRAM $COMMAND [--path=subfolder,-p subfolder] add | remove gpg-id..."
+	[[ -n $id_path ]] && check_sneaky_paths "$id_path"
+	[[ -n $id_path && ! -d $PREFIX/$id_path && -e $PREFIX/$id_path ]] && die "Error: $PREFIX/$id_path exists but is not a directory."
+
+	local gpg_id_file="$PREFIX/$id_path/.gpg-id"
+
+	for gpg_id in "$@"; do
+		"${action}_gpg_id" "$gpg_id_file" "$gpg_id"
+	done
+	id_print="$(cat "$gpg_id_file" | tr '\n' ',')"
+
+	agent_check
+	reencrypt_path "$PREFIX/$id_path"
+	git_add_file "$PREFIX/$id_path" "Reencrypt password store using new GPG id ${id_print%, }."
 }
 
 cmd_show() {
@@ -682,6 +736,7 @@ COMMAND="$1"
 
 case "$1" in
 	init) shift;			cmd_init "$@" ;;
+	id) shift;			cmd_id "$@" ;;
 	help|--help) shift;		cmd_usage "$@" ;;
 	version|--version) shift;	cmd_version "$@" ;;
 	show|ls|list) shift;		cmd_show "$@" ;;

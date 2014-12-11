@@ -74,6 +74,11 @@ the password store. If only one \fIgpg-id\fP is given, and it is an empty string
 then the current \fI.gpg-id\fP file for the specified \fIsub-folder\fP (or root if
 unspecified) is removed.
 .TP
+\fBid\fP [ \fI--path=sub-folder\fP, \fI-p sub-folder\fP ] \fIadd\fP | \fIremove\fP \fIgpg-id...\fP
+Add or remove gpg-id's from the \fI.gpg-id\fP file and reencrypt files to use
+the new id. If \fI--path\fP or \fI-p\fP is specified, then add or remove from
+the specific \fI.gpg-id\fP file in that given sub folder.
+.TP
 \fBls\fP \fIsubfolder\fP
 List names of passwords inside the tree at
 .I subfolder
