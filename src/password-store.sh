@@ -393,7 +393,6 @@ cmd_id() {
 	done
 	id_print="$(cat "$gpg_id_file" | tr '\n' ',')"
 
-	agent_check
 	reencrypt_path "$PREFIX/$id_path"
 	git_add_file "$PREFIX/$id_path" "Reencrypt password store using new GPG id ${id_print%, }."
 }
